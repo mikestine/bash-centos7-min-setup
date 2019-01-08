@@ -117,15 +117,21 @@ function setupc7::enableChrony() {
 }
 ###############################################################################
 function setupc7:addLexPublicSSHKey() {
-  printf "\n***Add Lex's Public SSH Key***\n\n"
-  mkdir -p ~/.ssh
-  chmod 700 ~/.ssh
-  touch ~/.ssh/authorized_keys
-  chmod 600 ~/.ssh/authorized_keys
+  local username publicKey userHomeDir userSSHDir
+  username="${1:-}" 
+  publicKey="${2:-}" 
+  userHomeDir="$(echo "~${username}")"
+  userSSHDir="$(echo "~${username}")/.ssh"
+  userSSHAuthorizedKeys="$(echo "~${username}")/.ssh/authorized_keys"
   
-  if ! grep -q "AAAAB3NzaC1y" ~/.ssh/authorized_keys; then
-    echo 'ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEAzhgKCvZTruEOCnkDHxWW9738LdwuCUpMGPHpkxDP9bD4EoQXIBgcvAYJMqBwFYdcbMX7KhS7FTNfszNAD6jWiR17mwTBz/ccI/JYP1G7zLwIUYl6or9tYBiDD6q8sqgl1v2kF1GDd2Pbr/ShAX/s4twnqnMbHzJ8ftY0Ss0EsfSOrXr3BYm4hAduWYEZEY9ro4D8y4xGmFj/bBVIhU4FbS9vBf3g+51OL2/2GqHaorgOKGdb1u7QlSsrx4bTdZSwlNOBB1utZ3H4ImaymjP2sHTSgsbCF4DX9cAoFnkTEibohfY9fN2g7G9uTuneK5DtFYRxSKGxgJyJqNRX+M8+qQ==
-    ' >> ~/.ssh/authorized_keys
+  printf "\n***Add Public SSH Key***\n\n"
+  mkdir -p "${userSSHDir}"
+  chmod 700 "${userSSHDir}"
+  touch "${userSSHAuthorizedKeys}"
+  chmod 600 "${userSSHAuthorizedKeys}"
+  
+  if ! grep -q "${publicKey}" "${userSSHAuthorizedKeys}"; then
+    echo "${publicKey}" >> "${userSSHAuthorizedKeys}"
   fi
 }
 ###############################################################################
@@ -139,7 +145,7 @@ function setupc7::askContinue() {
   esac
 }
 ###############################################################################
-function setupc7::sysprep() {
+function setupc7::prepForClone() {
   
   printf "\n***Sysprep***\n\n"
   
@@ -203,11 +209,24 @@ function setupc7::sysprep() {
   rm -f ~root/.bash_history
   unset HISTFILE
 
+  
+}
+###############################################################################
+function setupc7::sysprep {
   # The  sys-unconfig  command  is used to restore a system's configuration to
   # an "as-manufactured" state, ready to be reconfigured again. The system's 
   # configuration consists of host-name, Network Information Service (NIS) 
   # domain name, timezone, IP address, IP subnet mask,and root password
   sys-unconfig
+}
+
+function setupc7::addServiceAccount() {
+  groupadd service-group --gid 1000
+  useradd devops-service --uid 1000 --groups service-group --create-home --shell /bin/bash
+  mkdir /home/devops-service/.ssh
+  #cat publickey.pub >> /home/devops-service/.ssh/authorized_keys
+  chown devops-service:devops-service /home/devops-service -R
+  
 }
 ###############################################################################
 ###############################################################################
@@ -217,18 +236,26 @@ function setupc7::main() {
   # disables FirewallD, sets the timezone, enables Chrony, adds public SSH Keys,
   # and syspreps.
   
-  setupc7::setHostname "localhost.localdomain"
+  setupc7::setHostname 'localhost.localdomain'
   setupc7::upgradeOS
   setupc7::installApps
   setupc7::disableSELinux
   setupc7::disableFirewallD
-
-  timedatectl set-timezone "America/Los_Angeles"
-  setupc7::enableChrony "time.google.com"
-  setupc7:addLexPublicSSHKey
-  # setupc7::sysprep
+  timedatectl set-timezone 'America/Los_Angeles'
+  setupc7::enableChrony 'time.google.com'
+  
+  
+  
+  #setupc7:addPublicSSHKey 'admin' 'ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEAzhgKCvZTruEOCnkDHxWW9738LdwuCUpMGPHpkxDP9bD4EoQXIBgcvAYJMqBwFYdcbMX7KhS7FTNfszNAD6jWiR17mwTBz/ccI/JYP1G7zLwIUYl6or9tYBiDD6q8sqgl1v2kF1GDd2Pbr/ShAX/s4twnqnMbHzJ8ftY0Ss0EsfSOrXr3BYm4hAduWYEZEY9ro4D8y4xGmFj/bBVIhU4FbS9vBf3g+51OL2/2GqHaorgOKGdb1u7QlSsrx4bTdZSwlNOBB1utZ3H4ImaymjP2sHTSgsbCF4DX9cAoFnkTEibohfY9fN2g7G9uTuneK5DtFYRxSKGxgJyJqNRX+M8+qQ==
+    '
+  # setupc7::prepForClone
   
   printf "\nDONE\n"
+}
+###############################################################################
+###############################################################################
+function setupc7::createUser() {
+
 }
 ###############################################################################
 ###############################################################################
